@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WC2026 Admin</title>
+  <style>
+    :root {
+      --primary:#1a5cdb; --primary-light:#3a76f5; --primary-dark:#0f3a9e;
+      --bg:#05050f; --surface:#0c0e28; --card:#111435; --border:#1e2d7a;
+      --text:#e4eaff; --muted:#7080b0; --success:#00e676; --warning:#ffab40; --danger:#ff4444;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+    header{background:linear-gradient(135deg,#0a1a5e,var(--primary));padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--primary-light);}
+    header h1{font-size:1rem;font-weight:800;}
+    .badge{background:var(--warning);color:#000;font-size:0.62rem;font-weight:800;padding:2px 7px;border-radius:4px;}
+    .login-wrap{display:flex;align-items:center;justify-content:center;min-height:80vh;padding:20px;}
+    .login-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;width:100%;max-width:340px;text-align:center;}
+    .login-card h2{font-size:1rem;margin-bottom:6px;}
+    .login-card p{color:var(--muted);font-size:0.8rem;margin-bottom:18px;}
+    .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;}
+    .tab-btn{padding:12px 16px;background:none;border:none;color:var(--muted);font-size:0.8rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;}
+    .tab-btn.active{color:var(--text);border-bottom-color:var(--primary-light);}
+    .tab-content{display:none;padding:16px;max-width:640px;margin:0 auto;}
+    .tab-content.active{display:block;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;}
+    .card h3{font-size:0.85rem;font-weight:700;color:var(--primary-light);margin-bottom:12px;}
+    .field{margin-bottom:10px;}
+    .field label{display:block;font-size:0.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.5px;}
+    .field input,.field select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:0.85rem;padding:9px 11px;outline:none;}
+    .field input:focus,.field select:focus{border-color:var(--primary-light);}
+    .field select option{background:#1a1a3a;}
+    .row{display:flex;gap:8px;} .row .field{flex:1;}
+    .btn{padding:10px 16px;border:none;border-radius:7px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+    .btn-primary{background:var(--primary);color:#fff;} .btn-primary:hover{background:var(--primary-light);}
+    .btn-success{background:rgba(0,230,118,0.12);color:var(--success);border:1px solid var(--success);}
+    .btn-danger{background:rgba(255,68,68,0.1);color:var(--danger);border:1px solid var(--danger);}
+    .btn-warning{background:rgba(255,171,64,0.12);color:var(--warning);border:1px solid var(--warning);}
+    .btn-ghost{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
+    .btn-sm{padding:5px 10px;font-size:0.72rem;}
+    .btn-full{width:100%;}
+    .alert{padding:9px 12px;border-radius:7px;font-size:0.8rem;margin-bottom:10px;}
+    .alert-success{background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);color:var(--success);}
+    .alert-danger{background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);color:var(--danger);}
+    .alert-warning{background:rgba(255,171,64,0.1);border:1px solid rgba(255,171,64,0.3);color:var(--warning);}
+    .hidden{display:none!important;}
+
+    /* Fetch matches */
+    .api-setup{background:rgba(255,171,64,0.05);border:1px solid rgba(255,171,64,0.2);border-radius:10px;padding:14px;margin-bottom:14px;}
+    .api-setup p{font-size:0.78rem;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+    .api-row{display:flex;gap:8px;align-items:flex-end;}
+    .api-row .field{flex:1;margin:0;}
+
+    /* Match fetch card */
+    .fetch-match{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;}
+    .fetch-match .teams{font-size:1rem;font-weight:700;margin-bottom:4px;}
+    .fetch-match .score{font-size:1.3rem;font-weight:800;color:var(--primary-light);margin:6px 0;}
+    .fetch-match .meta{font-size:0.72rem;color:var(--muted);margin-bottom:10px;}
+    .fetch-match .actions{display:flex;gap:6px;flex-wrap:wrap;}
+    .status-badge{display:inline-block;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;}
+    .status-FT{background:rgba(0,230,118,0.15);color:var(--success);}
+    .status-LIVE{background:rgba(255,68,68,0.15);color:var(--danger);animation:pulse 1s infinite;}
+    .status-NS{background:rgba(112,128,176,0.15);color:var(--muted);}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+    /* Match list */
+    .match-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:7px;}
+    .match-teams{font-weight:700;font-size:0.85rem;margin-bottom:3px;}
+    .match-meta{font-size:0.7rem;color:var(--muted);margin-bottom:8px;}
+    .match-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+    .result-badge{font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:4px;}
+    .result-team1{background:rgba(0,230,118,0.12);color:var(--success);border:1px solid rgba(0,230,118,0.3);}
+    .result-draw{background:rgba(255,171,64,0.12);color:var(--warning);border:1px solid rgba(255,171,64,0.3);}
+    .result-team2{background:rgba(107,197,255,0.12);color:#6bc5ff;border:1px solid rgba(107,197,255,0.3);}
+    .result-pending{background:var(--card);color:var(--muted);border:1px solid var(--border);}
+    .inline-result{display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+    .inline-result.open{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+    .inline-result select{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 9px;font-size:0.78rem;flex:1;min-width:90px;}
+    .inline-result select option{background:#1a1a3a;}
+    .section-title{font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;}
+
+    /* Bracket */
+    .bracket-stage-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+    .stage-pill{padding:6px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.2s;}
+    .stage-pill.active{background:var(--primary);border-color:var(--primary-light);color:#fff;}
+    .bracket-match{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:8px;}
+    .bracket-match .bm-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .bm-pos{font-size:0.68rem;color:var(--primary-light);font-weight:700;}
+    .bm-teams{display:flex;gap:8px;align-items:center;font-size:0.88rem;font-weight:700;}
+    .bm-vs{color:var(--muted);font-size:0.75rem;}
+    .winner-tag{font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:3px;background:rgba(255,215,0,0.15);color:#ffd700;}
+
+    /* Bonus */
+    .team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px;}
+    .team-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px;}
+    .team-name{font-weight:700;font-size:0.78rem;margin-bottom:5px;}
+    .bonus-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;}
+    .bonus-tag{font-size:0.62rem;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(255,171,64,0.12);color:var(--warning);border:1px solid rgba(255,171,64,0.25);cursor:pointer;}
+    .bonus-tag:hover{background:rgba(255,68,68,0.15);color:var(--danger);}
+
+    /* Players */
+    .player-row{display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid var(--border);gap:8px;}
+    .player-row:last-child{border-bottom:none;}
+    .player-num{color:var(--muted);font-size:0.72rem;width:18px;}
+    .player-name{flex:1;font-weight:600;font-size:0.85rem;}
+    .player-id{color:var(--muted);font-size:0.72rem;}
+    .empty-state{text-align:center;padding:20px;color:var(--muted);font-size:0.8rem;}
+    .spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--primary-light);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:4px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>⚽ WC2026 Admin</h1>
+  <span class="badge">ADMIN</span>
+</header>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div style="font-size:2.2rem;margin-bottom:10px">🔐</div>
+    <h2>Admin Access</h2>
+    <p>Enter your admin password</p>
+    <div class="field"><input type="password" id="admin-pass" placeholder="Password" onkeydown="if(event.key==='Enter')login()"></div>
+    <div id="login-err" class="alert alert-danger hidden"></div>
+    <button class="btn btn-primary btn-full" onclick="login()">Sign In</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main-panel" class="hidden">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('fetch')">📡 Fetch & Confirm</button>
+    <button class="tab-btn" onclick="switchTab('matches')">📋 Matches</button>
+    <button class="tab-btn" onclick="switchTab('bracket')">🏆 Bracket</button>
+    <button class="tab-btn" onclick="switchTab('bonuses')">🎁 Bonuses</button>
+    <button class="tab-btn" onclick="switchTab('players')">👥 Players</button>
+  </div>
+
+  <!-- FETCH & CONFIRM TAB -->
+  <div id="tab-fetch" class="tab-content active">
+    <div style="margin-bottom:14px">
+      <div class="row" style="margin-bottom:8px">
+        <div class="field">
+          <label>Match Date</label>
+          <input type="date" id="fetch-date">
+        </div>
+        <div class="field">
+          <label>To Date (optional range)</label>
+          <input type="date" id="fetch-date-to">
+        </div>
+      </div>
+      <button class="btn btn-warning btn-full" onclick="fetchAndSave()">📡 Fetch &amp; Auto-Save Matches</button>
+    </div>
+
+    <div id="fetch-msg" class="hidden"></div>
+    <div id="fetch-loading" class="hidden" style="text-align:center;padding:20px;color:var(--muted)"><span class="spinner"></span> Fetching...</div>
+    <div id="fetch-results"></div>
+
+    <!-- Manual fallback -->
+    <div class="section-title">Manual Entry (fallback)</div>
+    <div class="card">
+      <h3>Add Match Manually</h3>
+      <div class="row">
+        <div class="field"><label>Team 1</label><select id="m-team1"><option value="">Select...</option></select></div>
+        <div class="field"><label>Team 2</label><select id="m-team2"><option value="">Select...</option></select></div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Stage</label>
+          <select id="m-stage" onchange="toggleGrp()">
+            <option value="Group">Group Stage</option>
+            <option value="R32">Round of 32</option>
+            <option value="R16">Round of 16</option>
+            <option value="QF">Quarter-Final</option>
+            <option value="SF">Semi-Final</option>
+            <option value="Final">Final</option>
+          </select>
+        </div>
+        <div class="field" id="grp-wrap">
+          <label>Group</label>
+          <select id="m-group">
+            <option>A</option><option>B</option><option>C</option><option>D</option>
+            <option>E</option><option>F</option><option>G</option><option>H</option>
+            <option>I</option><option>J</option><option>K</option><option>L</option>
+          </select>
+        </div>
+        <div class="field"><label>Result</label>
+          <select id="m-result">
+            <option value="">Pending</option>
+            <option value="team1">Team 1 Wins</option>
+            <option value="draw">Draw</option>
+            <option value="team2">Team 2 Wins</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Date</label><input type="date" id="m-date"></div>
+      <div id="add-msg" class="hidden"></div>
+      <button class="btn btn-primary" onclick="addMatch()">Add Match</button>
+    </div>
+  </div>
+
+  <!-- MATCHES TAB -->
+  <div id="tab-matches" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin:0">All Confirmed Matches</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadMatches()">↻ Refresh</button>
+    </div>
+    <div id="matches-loading" style="text-align:center;padding:20px;color:var(--muted)"><span class="spinner"></span> Loading...</div>
+    <div id="matches-list"></div>
+  </div>
+
+  <!-- BRACKET TAB -->
+  <div id="tab-bracket" class="tab-content">
+    <div class="card">
+      <h3>Set Knockout Bracket Matches</h3>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">Use this after the group stage ends to set up R32, R16, QF, SF and Final matches with the qualified teams.</p>
+      <div class="bracket-stage-tabs">
+        <div class="stage-pill active" onclick="selectBracketStage('R32',this)">R32</div>
+        <div class="stage-pill" onclick="selectBracketStage('R16',this)">R16</div>
+        <div class="stage-pill" onclick="selectBracketStage('QF',this)">QF</div>
+        <div class="stage-pill" onclick="selectBracketStage('SF',this)">SF</div>
+        <div class="stage-pill" onclick="selectBracketStage('Final',this)">Final</div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label>Team 1</label><select id="b-team1"><option value="">Select...</option></select></div>
+        <div class="field"><label>Team 2</label><select id="b-team2"><option value="">Select...</option></select></div>
+      </div>
+      <div class="field"><label>Match Position (e.g. 1, 2, 3...)</label><input type="number" id="b-pos" min="1" max="16" value="1"></div>
+      <div id="bracket-add-msg" class="hidden"></div>
+      <button class="btn btn-primary" onclick="addBracketMatch()">Save Bracket Match</button>
+    </div>
+
+    <div class="section-title">Current Bracket</div>
+    <div id="bracket-loading" style="text-align:center;padding:16px;color:var(--muted)"><span class="spinner"></span> Loading...</div>
+    <div id="bracket-list"></div>
+  </div>
+
+  <!-- BONUSES TAB -->
+  <div id="tab-bonuses" class="tab-content">
+    <div class="card">
+      <h3>🎁 Award Stage Bonuses</h3>
+      <p style="font-size:0.75rem;color:var(--muted);margin-bottom:12px">R32 +1 · R16 +2 · QF +3 · SF +5 · Final +8 · Champion +12</p>
+      <div class="row">
+        <div class="field"><label>Team</label><select id="bon-team"><option value="">Select...</option></select></div>
+        <div class="field"><label>Stage</label>
+          <select id="bon-stage">
+            <option value="R32">Round of 32 (+1)</option>
+            <option value="R16">Round of 16 (+2)</option>
+            <option value="QF">Quarter-Final (+3)</option>
+            <option value="SF">Semi-Final (+5)</option>
+            <option value="Final">Final (+8)</option>
+            <option value="Champion">Champion (+12)</option>
+          </select>
+        </div>
+      </div>
+      <div id="bonus-msg" class="hidden"></div>
+      <button class="btn btn-warning" onclick="awardBonus()">Award Bonus</button>
+    </div>
+    <div class="section-title">Awarded Bonuses</div>
+    <div id="bonuses-loading" style="text-align:center;padding:16px;color:var(--muted)"><span class="spinner"></span></div>
+    <div id="bonuses-list"></div>
+  </div>
+
+  <!-- PLAYERS TAB -->
+  <div id="tab-players" class="tab-content">
+    <div class="card">
+      <h3>👥 Registered Players</h3>
+      <div id="players-loading" style="text-align:center;padding:16px;color:var(--muted)"><span class="spinner"></span></div>
+      <div id="players-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyO0bUHn03KKOAcAni4OJLDIIncAODvl6Qj5xlIK9ryQcij4jPpjhMwhA8Vhieu-m5z/exec';
+
+const ALL_TEAMS = [
+  'Mexico','South Africa','Korea Republic','Czechia',
+  'Canada','Bosnia and Herzegovina','Qatar','Switzerland',
+  'Brazil','Morocco','Haiti','Scotland',
+  'USA','Paraguay','Australia','Türkiye',
+  'Germany','Curaçao',"Côte d'Ivoire",'Ecuador',
+  'Netherlands','Japan','Sweden','Tunisia',
+  'Belgium','Egypt','IR Iran','New Zealand',
+  'Spain','Cabo Verde','Saudi Arabia','Uruguay',
+  'France','Senegal','Iraq','Norway',
+  'Argentina','Algeria','Austria','Jordan',
+  'Portugal','Congo DR','Uzbekistan','Colombia',
+  'England','Croatia','Ghana','Panama'
+];
+
+let adminPassword = '';
+let currentBracketStage = 'R32';
+let matchesCache = [];
+let bracketCache = [];
+
+// ---- LOGIN ----
+function login() {
+  const pw = document.getElementById('admin-pass').value;
+  if (!pw) return;
+  adminPassword = pw;
+  fetch(`${API_URL}?action=get_players&password=${encodeURIComponent(pw)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error === 'Unauthorized') {
+        showLoginErr('Wrong password.');
+        adminPassword = '';
+      } else {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-panel').classList.remove('hidden');
+        populateSelects();
+        loadAll();
+      }
+    })
+    .catch(() => showLoginErr('Connection error. Try again.'));
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('login-err');
+  el.textContent = msg; el.classList.remove('hidden');
+}
+
+function populateSelects() {
+  ['m-team1','m-team2','b-team1','b-team2','bon-team'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">Select...</option>';
+    ALL_TEAMS.forEach(t => { const o = document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
+  });
+  document.getElementById('m-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fetch-date').value = new Date().toISOString().split('T')[0];
+}
+
+function toggleGrp() {
+  document.getElementById('grp-wrap').style.display = document.getElementById('m-stage').value === 'Group' ? '' : 'none';
+}
+
+// ---- TABS ----
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab === 'matches') loadMatches();
+  if (tab === 'bracket') loadBracket();
+  if (tab === 'bonuses') loadBonuses();
+  if (tab === 'players') loadPlayers();
+}
+
+function loadAll() { loadMatches(); loadBonuses(); loadPlayers(); loadBracket(); }
+
+// ---- FETCH & AUTO-SAVE ----
+async function fetchAndSave() {
+  const apiKey   = '090be0397ceb497eaf7526dcd7f857d3';
+  const dateFrom = document.getElementById('fetch-date').value;
+  const dateTo   = document.getElementById('fetch-date-to').value || dateFrom;
+  const msgEl    = document.getElementById('fetch-msg');
+
+  if (!dateFrom) { showMsg(msgEl, 'Please select a date.', 'warning'); return; }
+
+  document.getElementById('fetch-loading').classList.remove('hidden');
+  document.getElementById('fetch-results').innerHTML = '';
+  msgEl.classList.add('hidden');
+
+  try {
+    const res  = await fetch(`${API_URL}?action=fetch_today&password=${encodeURIComponent(adminPassword)}&apiKey=${encodeURIComponent(apiKey)}&dateFrom=${dateFrom}&dateTo=${dateTo}`);
+    const data = await res.json();
+    document.getElementById('fetch-loading').classList.add('hidden');
+    if (data.error) { showMsg(msgEl, data.error, 'danger'); return; }
+
+    const matches = data.matches || [];
+    if (!matches.length) { showMsg(msgEl, 'No matches found for selected date(s).', 'warning'); return; }
+
+    const finished = matches.filter(m => m.status === 'FINISHED');
+    const pending  = matches.filter(m => m.status !== 'FINISHED');
+
+    // Auto-save all finished matches
+    let saved = 0, skipped = 0, errors = 0;
+    for (const m of finished) {
+      const result = m.homeScore > m.awayScore ? 'team1' : m.homeScore < m.awayScore ? 'team2' : 'draw';
+      const stage  = m.stage === 'GROUP_STAGE' ? 'Group' : m.stage;
+      const grp    = m.group || '';
+      const date   = m.utcDate ? m.utcDate.split('T')[0] : dateFrom;
+      try {
+        const r    = await apiFetch({ action:'add_match', team1:m.homeTeam, team2:m.awayTeam, stage, group:grp, result, date });
+        const d    = await r.json();
+        if (d.success) saved++;
+        else if (d.duplicate) skipped++;
+        else errors++;
+      } catch(e) { errors++; }
+    }
+
+    // Show summary
+    renderFetchSummary(saved, skipped, errors, pending);
+    if (saved > 0) loadMatches();
+
+  } catch(e) {
+    document.getElementById('fetch-loading').classList.add('hidden');
+    showMsg(msgEl, 'Connection error. Try again.', 'danger');
+  }
+}
+
+function renderFetchSummary(saved, skipped, errors, pending) {
+  const div = document.getElementById('fetch-results');
+  let html = `
+    <div class="card" style="margin-bottom:12px">
+      <h3>Auto-Save Summary</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:${pending.length?'14px':'0'}">
+        <div style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+          <div style="font-size:1.4rem;font-weight:800;color:var(--success)">${saved}</div>
+          <div style="font-size:0.72rem;color:var(--muted)">Saved</div>
+        </div>
+        <div style="background:rgba(255,171,64,0.1);border:1px solid rgba(255,171,64,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+          <div style="font-size:1.4rem;font-weight:800;color:var(--warning)">${skipped}</div>
+          <div style="font-size:0.72rem;color:var(--muted)">Already Exist</div>
+        </div>
+        ${errors ? `<div style="background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:8px;padding:10px 16px;text-align:center">
+          <div style="font-size:1.4rem;font-weight:800;color:var(--danger)">${errors}</div>
+          <div style="font-size:0.72rem;color:var(--muted)">Errors</div>
+        </div>` : ''}
+      </div>`;
+
+  if (pending.length) {
+    html += `<div style="border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:0.72rem;font-weight:700;color:var(--muted);margin-bottom:8px">UPCOMING / NOT YET PLAYED</div>
+      ${pending.map(m => `
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:0.8rem">
+          <span>${esc(m.homeTeam)} vs ${esc(m.awayTeam)}</span>
+          <span style="color:var(--muted)">${m.utcDate ? new Date(m.utcDate).toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit'})+' EAT' : 'TBD'}</span>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  html += '</div>';
+  div.innerHTML = html;
+}
+
+// ---- MATCHES ----
+async function loadMatches() {
+  document.getElementById('matches-loading').classList.remove('hidden');
+  document.getElementById('matches-list').innerHTML = '';
+  try {
+    const res  = await fetch(`${API_URL}?action=get_matches`);
+    const data = await res.json();
+    matchesCache = data.matches || [];
+    renderMatches();
+  } catch(e) {
+    document.getElementById('matches-list').innerHTML = '<div class="empty-state" style="color:var(--danger)">Failed to load.</div>';
+  }
+  document.getElementById('matches-loading').classList.add('hidden');
+}
+
+function formatDateLabel(dateStr) {
+  try {
+    // Handle YYYY-MM-DD format safely without timezone shift
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y,m,d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m-1, d);
+      return dt.toLocaleDateString('en-KE',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+    }
+    const dt = new Date(dateStr);
+    if (isNaN(dt.getTime())) return dateStr;
+    return dt.toLocaleDateString('en-KE',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+  } catch(e) { return dateStr; }
+}
+
+function renderMatches() {
+  const list = document.getElementById('matches-list');
+  if (!matchesCache.length) { list.innerHTML = '<div class="empty-state">No matches yet.</div>'; return; }
+
+  // Group by date, newest first
+  const byDate = {};
+  matchesCache.forEach(m => {
+    const d = m.Date || 'Unknown Date';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(m);
+  });
+
+  const sortedDates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
+  let html = '';
+
+  sortedDates.forEach(date => {
+    const ms       = byDate[date];
+    const dateLabel = date !== 'Unknown Date' ? formatDateLabel(date) : 'Unknown Date';
+    html += `<div class="section-title">📅 ${dateLabel} <span style="color:var(--primary-light);font-weight:800">(${ms.length})</span></div>`;
+    ms.forEach(m => {
+      html += `
+        <div class="match-item">
+          <div class="match-teams">${esc(m.Team1)} vs ${esc(m.Team2)}</div>
+          <div class="match-meta">${stageLabel(m.Stage)} ${m.Group ? '· Grp '+m.Group : ''}</div>
+          <div class="match-actions">
+            ${resultBadge(m.Result, m.Team1, m.Team2)}
+            <button class="btn btn-warning btn-sm" onclick="openResult('${m.MatchID}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="delMatch('${m.MatchID}')">✕</button>
+          </div>
+          <div class="inline-result" id="ir-${m.MatchID}">
+            <select id="rs-${m.MatchID}">
+              <option value="">— Result —</option>
+              <option value="team1">${esc(m.Team1)} Wins</option>
+              <option value="draw">Draw</option>
+              <option value="team2">${esc(m.Team2)} Wins</option>
+            </select>
+            <button class="btn btn-success btn-sm" onclick="saveResult('${m.MatchID}')">Save</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ir-${m.MatchID}').classList.remove('open')">✕</button>
+          </div>
+        </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+
+function openResult(id) {
+  document.querySelectorAll('.inline-result').forEach(el => el.classList.remove('open'));
+  document.getElementById(`ir-${id}`).classList.add('open');
+}
+
+async function saveResult(matchId) {
+  const result = document.getElementById(`rs-${matchId}`).value;
+  if (!result) { showToast('Select a result first.', 'warning'); return; }
+  try {
+    const res  = await apiFetch({ action:'update_match', matchId, result });
+    const data = await res.json();
+    if (data.success) { showToast('Saved ✓', 'success'); loadMatches(); }
+    else showToast(data.error || 'Error.', 'danger');
+  } catch(e) { showToast('Error.', 'danger'); }
+}
+
+async function addMatch() {
+  const team1  = document.getElementById('m-team1').value;
+  const team2  = document.getElementById('m-team2').value;
+  const stage  = document.getElementById('m-stage').value;
+  const group  = document.getElementById('m-group').value;
+  const result = document.getElementById('m-result').value;
+  const date   = document.getElementById('m-date').value;
+  const msgEl  = document.getElementById('add-msg');
+  if (!team1||!team2) { showMsg(msgEl,'Select both teams.','danger'); return; }
+  if (team1===team2)  { showMsg(msgEl,'Teams must differ.','danger'); return; }
+  try {
+    const res  = await apiFetch({ action:'add_match', team1, team2, stage, group, result, date });
+    const data = await res.json();
+    if (data.success) { showMsg(msgEl,'Match added ✓','success'); loadMatches(); }
+    else showMsg(msgEl, data.error||'Error.','danger');
+  } catch(e) { showMsg(msgEl,'Connection error.','danger'); }
+}
+
+async function delMatch(matchId) {
+  if (!confirm('Delete this match?')) return;
+  try {
+    const res  = await apiFetch({ action:'delete_match', matchId });
+    const data = await res.json();
+    if (data.success) { showToast('Deleted.','success'); loadMatches(); }
+    else showToast(data.error||'Error.','danger');
+  } catch(e) { showToast('Error.','danger'); }
+}
+
+// ---- BRACKET ----
+function selectBracketStage(stage, el) {
+  document.querySelectorAll('.stage-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  currentBracketStage = stage;
+}
+
+async function addBracketMatch() {
+  const team1 = document.getElementById('b-team1').value;
+  const team2 = document.getElementById('b-team2').value;
+  const pos   = document.getElementById('b-pos').value;
+  const msgEl = document.getElementById('bracket-add-msg');
+  if (!team1||!team2) { showMsg(msgEl,'Select both teams.','danger'); return; }
+  try {
+    const res  = await apiFetch({ action:'save_bracket_match', stage:currentBracketStage, position:pos, team1, team2 });
+    const data = await res.json();
+    if (data.success) { showMsg(msgEl,'Bracket match saved ✓','success'); loadBracket(); }
+    else showMsg(msgEl, data.error||'Error.','danger');
+  } catch(e) { showMsg(msgEl,'Connection error.','danger'); }
+}
+
+async function loadBracket() {
+  document.getElementById('bracket-loading').classList.remove('hidden');
+  document.getElementById('bracket-list').innerHTML = '';
+  try {
+    const res  = await fetch(`${API_URL}?action=get_bracket`);
+    const data = await res.json();
+    bracketCache = data.bracket || [];
+    renderBracket();
+  } catch(e) {
+    document.getElementById('bracket-list').innerHTML = '<div class="empty-state" style="color:var(--danger)">Failed to load.</div>';
+  }
+  document.getElementById('bracket-loading').classList.add('hidden');
+}
+
+function renderBracket() {
+  const list = document.getElementById('bracket-list');
+  if (!bracketCache.length) { list.innerHTML = '<div class="empty-state">No bracket matches set yet.</div>'; return; }
+  const stages = ['R32','R16','QF','SF','Final'];
+  let html = '';
+  stages.forEach(stage => {
+    const sm = bracketCache.filter(b => b.Stage === stage);
+    if (!sm.length) return;
+    html += `<div class="section-title">${stageLabel(stage)}</div>`;
+    sm.forEach(b => {
+      const winTag = b.Winner ? `<span class="winner-tag">🏆 ${esc(b.Winner)}</span>` : '';
+      html += `
+        <div class="bracket-match">
+          <div class="bm-header">
+            <span class="bm-pos">Match ${b.Position}</span>
+            ${winTag}
+            <button class="btn btn-danger btn-sm" onclick="delBracket('${b.BracketID}')">✕</button>
+          </div>
+          <div class="bm-teams">${esc(b.Team1)} <span class="bm-vs">vs</span> ${esc(b.Team2)}</div>
+          ${!b.Winner ? `
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="saveBracketResult('${b.BracketID}','team1')">${esc(b.Team1)} Wins</button>
+            <button class="btn btn-warning btn-sm" onclick="saveBracketResult('${b.BracketID}','draw')">Draw/ET</button>
+            <button class="btn btn-success btn-sm" onclick="saveBracketResult('${b.BracketID}','team2')">${esc(b.Team2)} Wins</button>
+          </div>` : ''}
+        </div>`;
+    });
+  });
+  list.innerHTML = html;
+}
+
+async function saveBracketResult(bracketId, result) {
+  try {
+    const res  = await apiFetch({ action:'update_bracket', bracketId, result });
+    const data = await res.json();
+    if (data.success) { showToast(`Winner: ${data.winner} ✓`,'success'); loadBracket(); }
+    else showToast(data.error||'Error.','danger');
+  } catch(e) { showToast('Error.','danger'); }
+}
+
+async function delBracket(bracketId) {
+  if (!confirm('Remove this bracket match?')) return;
+  try {
+    const res  = await apiFetch({ action:'delete_bracket', bracketId });
+    const data = await res.json();
+    if (data.success) { showToast('Removed.','success'); loadBracket(); }
+  } catch(e) { showToast('Error.','danger'); }
+}
+
+// ---- BONUSES ----
+async function loadBonuses() {
+  document.getElementById('bonuses-loading').classList.remove('hidden');
+  try {
+    const res  = await fetch(`${API_URL}?action=get_bonuses&password=${encodeURIComponent(adminPassword)}`);
+    const data = await res.json();
+    renderBonuses(data.bonuses||[]);
+  } catch(e) {}
+  document.getElementById('bonuses-loading').classList.add('hidden');
+}
+
+function renderBonuses(bonuses) {
+  const list = document.getElementById('bonuses-list');
+  if (!bonuses.length) { list.innerHTML = '<div class="empty-state">No bonuses awarded yet.</div>'; return; }
+  const byTeam = {};
+  bonuses.forEach(b => { if (!byTeam[b.Team]) byTeam[b.Team]=[]; byTeam[b.Team].push(b); });
+  let html = '<div class="team-grid">';
+  Object.entries(byTeam).forEach(([team,bs]) => {
+    const total = bs.reduce((s,b)=>s+Number(b.Points),0);
+    html += `<div class="team-item">
+      <div class="team-name">${esc(team)}</div>
+      <div class="bonus-tags">${bs.map(b=>`<span class="bonus-tag" onclick="revokeBonus('${esc(team)}','${b.Stage}')" title="Click to revoke">${b.Stage} +${b.Points}✕</span>`).join('')}</div>
+      <div style="font-size:0.68rem;color:var(--warning)">+${total}pts total</div>
+    </div>`;
+  });
+  html += '</div>';
+  list.innerHTML = html;
+}
+
+async function awardBonus() {
+  const team  = document.getElementById('bon-team').value;
+  const stage = document.getElementById('bon-stage').value;
+  const msgEl = document.getElementById('bonus-msg');
+  if (!team) { showMsg(msgEl,'Select a team.','danger'); return; }
+  try {
+    const res  = await apiFetch({ action:'award_bonus', team, stage });
+    const data = await res.json();
+    if (data.success) { showMsg(msgEl, data.message||'Bonus awarded!','success'); loadBonuses(); }
+    else showMsg(msgEl, data.error||'Error.','warning');
+  } catch(e) { showMsg(msgEl,'Connection error.','danger'); }
+}
+
+async function revokeBonus(team, stage) {
+  if (!confirm(`Revoke ${stage} bonus for ${team}?`)) return;
+  try {
+    const res  = await apiFetch({ action:'revoke_bonus', team, stage });
+    const data = await res.json();
+    if (data.success) { showToast('Revoked.','success'); loadBonuses(); }
+  } catch(e) { showToast('Error.','danger'); }
+}
+
+// ---- PLAYERS ----
+async function loadPlayers() {
+  document.getElementById('players-loading').classList.remove('hidden');
+  try {
+    const res  = await fetch(`${API_URL}?action=get_players&password=${encodeURIComponent(adminPassword)}`);
+    const data = await res.json();
+    renderPlayers(data.players||[]);
+  } catch(e) {}
+  document.getElementById('players-loading').classList.add('hidden');
+}
+
+function renderPlayers(players) {
+  const list = document.getElementById('players-list');
+  if (!players.length) { list.innerHTML = '<div class="empty-state">No players yet.</div>'; return; }
+  list.innerHTML = players.map((p,i) => `
+    <div class="player-row">
+      <div class="player-num">${i+1}</div>
+      <div class="player-name">${esc(p.Name)}</div>
+      <div class="player-id">${esc(p.Email)}${p.Sex ? ' · ' + esc(p.Sex) : ''}</div>
+    </div>`).join('');
+}
+
+// ---- HELPERS ----
+function apiFetch(body) {
+  return fetch(API_URL, { method:'POST', body: JSON.stringify({...body, password:adminPassword}) });
+}
+
+function resultBadge(result, t1, t2) {
+  if (!result) return '<span class="result-badge result-pending">Pending</span>';
+  if (result==='draw')  return '<span class="result-badge result-draw">Draw</span>';
+  if (result==='team1') return `<span class="result-badge result-team1">${esc(t1)} Won</span>`;
+  if (result==='team2') return `<span class="result-badge result-team2">${esc(t2)} Won</span>`;
+  return '';
+}
+
+function stageLabel(s) {
+  return {Group:'Group Stage',R32:'Round of 32',R16:'Round of 16',QF:'Quarter-Finals',SF:'Semi-Finals',Final:'Final'}[s]||s;
+}
+
+function showMsg(el, msg, type) {
+  el.textContent = msg; el.className = `alert alert-${type}`; el.classList.remove('hidden');
+  setTimeout(()=>el.classList.add('hidden'), 5000);
+}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = `alert alert-${type}`;
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;min-width:200px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5)';
+  t.textContent = msg; document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('admin-pass').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+</script>
+</body>
+</html>

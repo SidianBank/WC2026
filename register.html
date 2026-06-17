@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WC2026 Workplace Game — Register</title>
+  <style>
+    :root {
+      --primary:       #1a5cdb;
+      --primary-light: #3a76f5;
+      --primary-dark:  #0f3a9e;
+      --bg:            #05050f;
+      --surface:       #0c0e28;
+      --card:          #111435;
+      --border:        #1e2d7a;
+      --text:          #e4eaff;
+      --muted:         #7080b0;
+      --success:       #00e676;
+      --warning:       #ffab40;
+      --danger:        #ff4444;
+      --cat1:          #ffd700;
+      --cat2:          #c0c0c0;
+      --cat3:          #cd7f32;
+      --cat4:          #6bc5ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      padding: 24px 20px 20px;
+      text-align: center;
+      border-bottom: 2px solid var(--primary-light);
+    }
+    header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: 1px; }
+    header p  { color: rgba(255,255,255,0.75); font-size: 0.85rem; margin-top: 4px; }
+
+    /* Progress steps */
+    .steps {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      padding: 20px 20px 0;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .step::before {
+      content: attr(data-num);
+      display: block;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 2px solid var(--border);
+      line-height: 28px;
+      margin: 0 auto 6px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .step.active { color: var(--text); }
+    .step.active::before { background: var(--primary); border-color: var(--primary-light); }
+    .step.done::before { background: var(--success); border-color: var(--success); content: '✓'; color: #000; }
+    .step-line {
+      flex: 1; height: 2px;
+      background: var(--border);
+      margin-top: 15px;
+      align-self: flex-start;
+    }
+
+    /* Container */
+    .container {
+      max-width: 480px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--primary-light);
+    }
+    .card .subtitle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* Form fields */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field input, .field select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--primary-light);
+    }
+    .field select option { background: #1a1a3a; }
+
+    /* Group picker grid */
+    .groups-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .group-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .group-card .group-label {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: var(--primary-light);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .group-card select {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 8px 10px;
+      outline: none;
+    }
+    .group-card select:focus { border-color: var(--primary-light); }
+    .group-card select option { background: #1a1a3a; }
+    .cat-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+    .cat-1 { background: rgba(255,215,0,0.15); color: var(--cat1); }
+    .cat-2 { background: rgba(192,192,192,0.15); color: var(--cat2); }
+    .cat-3 { background: rgba(205,127,50,0.15); color: var(--cat3); }
+    .cat-4 { background: rgba(107,197,255,0.15); color: var(--cat4); }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--primary-light); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--text); }
+
+    /* Review table */
+    .review-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .review-table tr { border-bottom: 1px solid var(--border); }
+    .review-table td { padding: 9px 6px; }
+    .review-table td:first-child { color: var(--muted); width: 60px; }
+    .review-table td:last-child { text-align: right; }
+
+    /* Alert / message */
+    .alert {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    .alert-danger  { background: rgba(255,68,68,0.12); border: 1px solid rgba(255,68,68,0.3); color: #ff7070; }
+    .alert-success { background: rgba(0,230,118,0.1);  border: 1px solid rgba(0,230,118,0.3); color: var(--success); }
+
+    /* Success screen */
+    .success-screen { text-align: center; padding: 20px 0; }
+    .success-icon { font-size: 3.5rem; margin-bottom: 12px; }
+    .success-screen h2 { font-size: 1.3rem; margin-bottom: 8px; }
+    .success-screen p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+
+    /* Closed screen */
+    .closed-screen { text-align: center; padding: 40px 20px; }
+    .closed-screen .icon { font-size: 3rem; margin-bottom: 12px; }
+    .closed-screen h2 { font-size: 1.2rem; margin-bottom: 8px; color: var(--warning); }
+
+    /* Legend */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-bottom: 16px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚽ WC2026 WORKPLACE GAME</h1>
+  <p>Pick one team per group. Score points as they play.</p>
+</header>
+
+<!-- Progress -->
+<div class="steps">
+  <div class="step active" data-num="1" id="step1-indicator">Details</div>
+  <div class="step-line"></div>
+  <div class="step" data-num="2" id="step2-indicator">Pick Teams</div>
+  <div class="step-line"></div>
+  <div class="step" data-num="3" id="step3-indicator">Confirm</div>
+</div>
+
+<div class="container">
+
+  <!-- CLOSED MESSAGE -->
+  <div id="closed-screen" class="card closed-screen hidden">
+    <div class="icon">🔒</div>
+    <h2>Registration Closed</h2>
+    <p style="color:var(--muted)">The deadline (17 June 2026) has passed.<br>Check the leaderboard to follow the action.</p>
+  </div>
+
+  <!-- STEP 1: Personal Details -->
+  <div id="step1" class="card">
+    <h2>Your Details</h2>
+    <p class="subtitle">Enter your name, Staff ID and details to get started</p>
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="inp-name" placeholder="e.g. John Mwangi" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Staff ID</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-weight:700;color:var(--primary-light);text-align:center;min-width:54px">KB</div>
+        <input type="text" id="inp-email" placeholder="1234" maxlength="4" inputmode="numeric" autocomplete="off" style="flex:1">
+      </div>
+    </div>
+    <div class="field">
+      <label>Sex</label>
+      <select id="inp-sex">
+        <option value="">— Select —</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Department">Department</option>
+      </select>
+    </div>
+    <div id="step1-error" class="alert alert-danger hidden"></div>
+    <button class="btn btn-primary" onclick="goStep2()">Next — Pick My Teams →</button>
+  </div>
+
+  <!-- STEP 2: Team Selection -->
+  <div id="step2" class="card hidden">
+    <h2>Pick Your Teams</h2>
+    <p class="subtitle">Select one team per group — your points depend on how they perform</p>
+    <div class="legend">
+      <div class="legend-item"><span class="cat-badge cat-1">CAT 1</span> Win = 1pt</div>
+      <div class="legend-item"><span class="cat-badge cat-2">CAT 2</span> Win = 2pts</div>
+      <div class="legend-item"><span class="cat-badge cat-3">CAT 3</span> Win = 3pts</div>
+      <div class="legend-item"><span class="cat-badge cat-4">CAT 4</span> Win = 4pts</div>
+    </div>
+    <div class="groups-grid" id="groups-grid"></div>
+    <div id="step2-error" class="alert alert-danger hidden" style="margin-top:14px"></div>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="goStep3()">Review My Picks →</button>
+    <button class="btn btn-ghost" onclick="goStep1()">← Back</button>
+  </div>
+
+  <!-- STEP 3: Review & Confirm -->
+  <div id="step3" class="card hidden">
+    <h2>Review & Confirm</h2>
+    <p class="subtitle">Check your picks before submitting</p>
+    <div style="margin-bottom:14px">
+      <span style="color:var(--muted);font-size:0.8rem">Registering as:</span><br>
+      <span id="review-name" style="font-weight:700;font-size:1rem"></span>
+      <span id="review-email" style="color:var(--muted);font-size:0.83rem;margin-left:8px"></span>
+      <br><span id="review-sex" style="color:var(--muted);font-size:0.83rem"></span>
+    </div>
+    <table class="review-table" id="review-table"></table>
+    <div id="step3-error" class="alert alert-danger hidden" style="margin-top:14px"></div>
+    <button class="btn btn-primary" style="margin-top:18px" id="submit-btn" onclick="submitRegistration()">
+      ✅ Confirm & Register
+    </button>
+    <button class="btn btn-ghost" onclick="goStep2()">← Change Picks</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="success-screen" class="card hidden">
+    <div class="success-screen">
+      <div class="success-icon">🏆</div>
+      <h2>You're In!</h2>
+      <p id="success-name" style="font-weight:700;font-size:1.1rem;color:var(--primary-light);margin-bottom:12px"></p>
+      <p>Your picks have been saved.<br>Check the leaderboard once the tournament starts!</p>
+      <div id="success-picks" style="margin-top:20px;text-align:left;font-size:0.82rem;border-top:1px solid var(--border);padding-top:16px"></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ================================================================
+// CONFIG — Replace with your deployed Apps Script URL
+// ================================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbyO0bUHn03KKOAcAni4OJLDIIncAODvl6Qj5xlIK9ryQcij4jPpjhMwhA8Vhieu-m5z/exec';
+const DEADLINE = new Date('2026-06-17T23:59:59');
+
+// ---- TEAM DATA ----
+const GROUPS = {
+  A: [{n:'Mexico',c:2},{n:'South Africa',c:4},{n:'Korea Republic',c:2},{n:'Czechia',c:3}],
+  B: [{n:'Canada',c:3},{n:'Bosnia and Herzegovina',c:4},{n:'Qatar',c:4},{n:'Switzerland',c:2}],
+  C: [{n:'Brazil',c:1},{n:'Morocco',c:1},{n:'Haiti',c:4},{n:'Scotland',c:3}],
+  D: [{n:'USA',c:2},{n:'Paraguay',c:3},{n:'Australia',c:2},{n:'Turkiye',c:2}],
+  E: [{n:'Germany',c:1},{n:'Curacaо',c:4},{n:'Cote dIvoire',c:3},{n:'Ecuador',c:2}],
+  F: [{n:'Netherlands',c:1},{n:'Japan',c:2},{n:'Sweden',c:3},{n:'Tunisia',c:3}],
+  G: [{n:'Belgium',c:1},{n:'Egypt',c:3},{n:'IR Iran',c:2},{n:'New Zealand',c:4}],
+  H: [{n:'Spain',c:1},{n:'Cabo Verde',c:4},{n:'Saudi Arabia',c:4},{n:'Uruguay',c:2}],
+  I: [{n:'France',c:1},{n:'Senegal',c:2},{n:'Iraq',c:4},{n:'Norway',c:3}],
+  J: [{n:'Argentina',c:1},{n:'Algeria',c:3},{n:'Austria',c:2},{n:'Jordan',c:4}],
+  K: [{n:'Portugal',c:1},{n:'Congo DR',c:3},{n:'Uzbekistan',c:4},{n:'Colombia',c:1}],
+  L: [{n:'England',c:1},{n:'Croatia',c:1},{n:'Ghana',c:4},{n:'Panama',c:3}]
+};
+const GROUP_KEYS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+
+let playerName  = '';
+let playerEmail = '';
+let playerSex   = '';
+let picks = {};
+
+// ---- INIT ----
+window.onload = function() {
+  if (new Date() > DEADLINE) {
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('closed-screen').classList.remove('hidden');
+    return;
+  }
+  buildGroupGrid();
+};
+
+function buildGroupGrid() {
+  const grid = document.getElementById('groups-grid');
+  grid.innerHTML = '';
+  GROUP_KEYS.forEach(g => {
+    const teams = GROUPS[g];
+    const div = document.createElement('div');
+    div.className = 'group-card';
+    div.innerHTML = `
+      <div class="group-label">Group ${g}</div>
+      <select id="pick-${g}" onchange="updateCatBadge('${g}')">
+        <option value="">— Select Team —</option>
+        ${teams.map(t => `<option value="${t.n}" data-cat="${t.c}">${t.n}</option>`).join('')}
+      </select>
+      <div id="badge-${g}"></div>
+    `;
+    grid.appendChild(div);
+    // Restore previous pick if any
+    if (picks[g]) {
+      setTimeout(() => {
+        document.getElementById(`pick-${g}`).value = picks[g];
+        updateCatBadge(g);
+      }, 0);
+    }
+  });
+}
+
+function updateCatBadge(g) {
+  const sel = document.getElementById(`pick-${g}`);
+  const opt = sel.options[sel.selectedIndex];
+  const cat = opt.getAttribute('data-cat');
+  const badge = document.getElementById(`badge-${g}`);
+  if (cat) {
+    const labels = {1:'CAT 1 · 1pt/win',2:'CAT 2 · 2pts/win',3:'CAT 3 · 3pts/win',4:'CAT 4 · 4pts/win'};
+    badge.innerHTML = `<span class="cat-badge cat-${cat}">${labels[cat]}</span>`;
+  } else {
+    badge.innerHTML = '';
+  }
+}
+
+// ---- NAVIGATION ----
+function goStep1() {
+  setStep(1);
+}
+
+function goStep2() {
+  playerName = document.getElementById('inp-name').value.trim();
+  const digits = document.getElementById('inp-email').value.trim();
+  playerSex  = document.getElementById('inp-sex').value;
+  const err  = document.getElementById('step1-error');
+
+  if (!playerName) { showErr(err, 'Please enter your name.'); return; }
+  if (!/^\d{4}$/.test(digits)) { showErr(err, 'Please enter exactly 4 digits for your Staff ID.'); return; }
+  if (!playerSex) { showErr(err, 'Please make a selection.'); return; }
+
+  playerEmail = 'KB' + digits;
+  err.classList.add('hidden');
+  setStep(2);
+}
+
+function goStep3() {
+  const err = document.getElementById('step2-error');
+  picks = {};
+  for (const g of GROUP_KEYS) {
+    const val = document.getElementById(`pick-${g}`).value;
+    if (!val) { showErr(err, `Please pick a team for Group ${g}.`); return; }
+    picks[g] = val;
+  }
+  err.classList.add('hidden');
+  buildReview();
+  setStep(3);
+}
+
+function buildReview() {
+  document.getElementById('review-name').textContent  = playerName;
+  document.getElementById('review-email').textContent = playerEmail;
+  document.getElementById('review-sex').textContent   = playerSex;
+  const tbody = document.getElementById('review-table');
+  tbody.innerHTML = '';
+  GROUP_KEYS.forEach(g => {
+    const team = picks[g];
+    const teamData = GROUPS[g].find(t => t.n === team);
+    const cat = teamData ? teamData.c : '?';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>Group ${g}</td>
+      <td style="font-weight:600">${team}</td>
+      <td><span class="cat-badge cat-${cat}">CAT ${cat}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function setStep(n) {
+  ['step1','step2','step3','success-screen'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+  document.getElementById(`step${n}`).classList.remove('hidden');
+  [1,2,3].forEach(i => {
+    const ind = document.getElementById(`step${i}-indicator`);
+    ind.classList.remove('active','done');
+    if (i < n) ind.classList.add('done');
+    else if (i === n) ind.classList.add('active');
+  });
+}
+
+// ---- SUBMIT ----
+async function submitRegistration() {
+  const btn = document.getElementById('submit-btn');
+  const err = document.getElementById('step3-error');
+  btn.textContent = 'Registering...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action:'register', name:playerName, email:playerEmail, sex:playerSex, picks })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showSuccess();
+    } else {
+      showErr(err, data.error || 'Registration failed. Please try again.');
+      btn.textContent = '✅ Confirm & Register';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    showErr(err, 'Connection error. Check your internet and try again.');
+    btn.textContent = '✅ Confirm & Register';
+    btn.disabled = false;
+  }
+}
+
+function showSuccess() {
+  ['step1','step2','step3'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('success-screen').classList.remove('hidden');
+  document.getElementById('success-name').textContent = playerName;
+
+  // Show summary of picks
+  const div = document.getElementById('success-picks');
+  div.innerHTML = '<div style="font-weight:700;margin-bottom:10px;color:var(--muted)">YOUR PICKS:</div>';
+  GROUP_KEYS.forEach(g => {
+    const team = picks[g];
+    const teamData = GROUPS[g].find(t => t.n === team);
+    const cat = teamData ? teamData.c : '?';
+    div.innerHTML += `
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">Group ${g}</span>
+        <span style="font-weight:600">${team} <span class="cat-badge cat-${cat}">CAT ${cat}</span></span>
+      </div>`;
+  });
+}
+
+function showErr(el, msg) {
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+</script>
+</body>
+</html>
