@@ -76,36 +76,36 @@
       justify-content: center;
       align-items: flex-end;
       gap: 8px;
-      margin-bottom: 24px;
-      padding: 16px 0;
+      margin-bottom: 16px;
+      padding: 8px 0;
     }
     .podium-item {
       flex: 1;
       max-width: 140px;
       text-align: center;
     }
-    .podium-crown { font-size: 1.5rem; margin-bottom: 4px; }
+    .podium-crown { font-size: 1.1rem; margin-bottom: 2px; }
     .podium-name {
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       padding: 0 4px;
     }
-    .podium-pts { font-size: 0.7rem; color: var(--muted); margin: 2px 0 8px; }
+    .podium-pts { font-size: 0.66rem; color: var(--muted); margin: 1px 0 4px; }
     .podium-block {
-      border-radius: 8px 8px 0 0;
+      border-radius: 6px 6px 0 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
+      font-size: 1.1rem;
       font-weight: 900;
       color: rgba(0,0,0,0.5);
     }
-    .podium-1 .podium-block { height: 70px; background: var(--gold); }
-    .podium-2 .podium-block { height: 50px; background: var(--silver); }
-    .podium-3 .podium-block { height: 36px; background: var(--bronze); }
+    .podium-1 .podium-block { height: 42px; background: var(--gold); }
+    .podium-2 .podium-block { height: 30px; background: var(--silver); }
+    .podium-3 .podium-block { height: 22px; background: var(--bronze); }
 
     /* Leaderboard list */
     .lb-card {
@@ -228,6 +228,16 @@
     }
     .bonus-item span { color: var(--muted); font-weight: 400; }
 
+    /* Collapsible legend sections (Scoring Guide / Tie-Breaking Rules) */
+    .legend-toggle { display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
+    .legend-toggle .chevron { font-size:0.7rem; color:var(--muted); transition:transform 0.2s; }
+    .legend-toggle.open .chevron { transform:rotate(180deg); }
+    .legend-body { max-height:0; overflow:hidden; transition:max-height 0.25s ease; }
+    .legend-body.open { max-height:400px; margin-top:8px; }
+    .tiebreak-list { display:flex; flex-direction:column; gap:6px; font-size:0.72rem; color:var(--text); }
+    .tiebreak-list li { list-style:none; padding-left:0; }
+    .tiebreak-list .tb-rank { color:var(--primary-light); font-weight:700; margin-right:4px; }
+
     /* Auto-refresh indicator */
     .refresh-info {
       text-align: center;
@@ -296,8 +306,10 @@
     .search-wrap input::placeholder { color: var(--muted); }
     .lb-card.search-match { border-color: var(--primary-light); box-shadow: 0 0 0 1px rgba(244,195,33,0.3); }
     .lb-card.search-hidden { display: none; }
+    .player-stat-row.search-match { border-color: var(--primary-light); box-shadow: 0 0 0 1px rgba(244,195,33,0.3); }
+    .player-stat-row.search-hidden { display: none; }
     /* ===== TABS ===== */
-    .lb-tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); }
+    .lb-tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; }
     .lb-tab-btn { flex:1; padding:12px 8px; background:none; border:none; color:var(--muted); font-size:0.78rem; font-weight:700; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
     .lb-tab-btn.active { color:var(--text); border-bottom-color:var(--primary-light); }
     .lb-tab-content { display:none; }
@@ -391,19 +403,38 @@
       <div class="sex-toggle-btn" onclick="setStandingsSexFilter('Female',this)">Female</div>
     </div>
     <div class="bonus-legend">
-      <h3>🎯 Scoring Guide</h3>
-      <div class="bonus-items">
-        <div class="bonus-item">CAT 1 <span>Win=1pt</span></div>
-        <div class="bonus-item">CAT 2 <span>Win=2pts</span></div>
-        <div class="bonus-item">CAT 3 <span>Win=3pts</span></div>
-        <div class="bonus-item">CAT 4 <span>Win=4pts</span></div>
-        <div class="bonus-item">Draw <span>=½pts</span></div>
-        <div class="bonus-item">R32 <span>+1</span></div>
-        <div class="bonus-item">R16 <span>+2</span></div>
-        <div class="bonus-item">QF <span>+3</span></div>
-        <div class="bonus-item">SF <span>+5</span></div>
-        <div class="bonus-item">Final <span>+8</span></div>
-        <div class="bonus-item">🏆 Champ <span>+12</span></div>
+      <div class="legend-toggle" onclick="toggleLegend(this)">
+        <h3 style="margin-bottom:0">🎯 Scoring Guide</h3>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="legend-body">
+        <div class="bonus-items">
+          <div class="bonus-item">CAT 1 <span>Win=1pt</span></div>
+          <div class="bonus-item">CAT 2 <span>Win=2pts</span></div>
+          <div class="bonus-item">CAT 3 <span>Win=3pts</span></div>
+          <div class="bonus-item">CAT 4 <span>Win=4pts</span></div>
+          <div class="bonus-item">Draw <span>=½pts</span></div>
+          <div class="bonus-item">R32 <span>+1</span></div>
+          <div class="bonus-item">R16 <span>+2</span></div>
+          <div class="bonus-item">QF <span>+3</span></div>
+          <div class="bonus-item">SF <span>+5</span></div>
+          <div class="bonus-item">Final <span>+8</span></div>
+          <div class="bonus-item">🏆 Champ <span>+12</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="bonus-legend">
+      <div class="legend-toggle" onclick="toggleLegend(this)">
+        <h3 style="margin-bottom:0">⚖️ Tie-Breaking Rules</h3>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="legend-body">
+        <ul class="tiebreak-list">
+          <li><span class="tb-rank">1.</span>Total points</li>
+          <li><span class="tb-rank">2.</span>Highest total goal difference of picked teams</li>
+          <li><span class="tb-rank">3.</span>Most match wins</li>
+          <li><span class="tb-rank">4.</span>Most upset wins (Cat 3/4 correct picks)</li>
+        </ul>
       </div>
     </div>
     <div class="search-wrap">
@@ -460,6 +491,10 @@
       <div class="sex-toggle-btn" onclick="setStatsSexFilter('Male',this)">Male</div>
       <div class="sex-toggle-btn" onclick="setStatsSexFilter('Female',this)">Female</div>
     </div>
+    <div class="search-wrap">
+      <input type="text" id="stats-search" placeholder="🔍 Search your name..." oninput="filterStatsSearch(this.value)">
+    </div>
+    <div id="stats-search-empty" class="empty hidden">No matching names found.</div>
     <div id="stats-loading" class="stats-loading"><div class="loading-spinner"></div><div>Loading stats...</div></div>
     <div id="stats-content" class="hidden"></div>
   </div>
@@ -501,6 +536,13 @@ const GROUP_KEYS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
 let currentRound = 'R32';
 let bracketData  = [];
 let picksData    = [];
+
+function toggleLegend(toggleEl) {
+  const body = toggleEl.nextElementSibling;
+  const open = body.classList.toggle('open');
+  toggleEl.classList.toggle('open', open);
+}
+
 
 // ---- TABS ----
 function switchTab(tab, btn) {
@@ -780,6 +822,7 @@ function setStatsView(view, btn) {
   btn.classList.add('active');
   document.getElementById('stats-sex-toggle').style.display = view === 'individual' ? 'flex' : 'none';
   if (view !== 'individual') statsSex = 'all';
+  clearStatsSearch();
   if (fullStatsData) renderStats(fullStatsData);
 }
 
@@ -787,7 +830,29 @@ function setStatsSexFilter(sex, btn) {
   statsSex = sex;
   document.querySelectorAll('#stats-sex-toggle .sex-toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  clearStatsSearch();
   if (fullStatsData) renderStats(fullStatsData);
+}
+
+function clearStatsSearch() {
+  const input = document.getElementById('stats-search');
+  if (input) input.value = '';
+  document.getElementById('stats-search-empty').classList.add('hidden');
+}
+
+function filterStatsSearch(term) {
+  const q = term.trim().toLowerCase();
+  const rows = document.querySelectorAll('#stats-content .player-stat-row');
+  let visibleCount = 0;
+
+  rows.forEach(row => {
+    const matches = !q || (row.dataset.name || '').includes(q);
+    row.classList.toggle('search-hidden', !matches);
+    row.classList.toggle('search-match', !!q && matches);
+    if (matches) visibleCount++;
+  });
+
+  document.getElementById('stats-search-empty').classList.toggle('hidden', !(q && visibleCount === 0));
 }
 
 // Store stats data globally for modal access
@@ -847,7 +912,7 @@ function renderStats(data) {
       const upset = (p.upsetMatches || []).length;
       const bonus = p.bonusPoints || 0;
       return `
-        <div class="player-stat-row">
+        <div class="player-stat-row" data-name="${esc(p.name).toLowerCase()}">
           <div class="psr-top">
             <div class="psr-name">${i+1}. ${esc(p.name)}</div>
             <div class="psr-total">${p.total} pts</div>
@@ -874,6 +939,10 @@ function renderStats(data) {
   }
 
   div.innerHTML = html;
+
+  // Re-apply any active search filter after re-render
+  const statsSearchInput = document.getElementById('stats-search');
+  if (statsSearchInput && statsSearchInput.value) filterStatsSearch(statsSearchInput.value);
 }
 
 // ---- MODAL ----
