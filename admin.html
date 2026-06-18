@@ -152,11 +152,22 @@
         </div>
       </div>
       <button class="btn btn-warning btn-full" onclick="fetchAndSave()">📡 Fetch &amp; Auto-Save Matches</button>
+      <p style="font-size:0.7rem;color:var(--muted);margin-top:6px;text-align:center">Standings &amp; goal difference auto-refresh with this action — viewers never call the API directly.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <h3>📊 Standings Cache</h3>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">
+        Cache last updated: <strong id="cache-timestamp" style="color:var(--text)">checking...</strong>
+      </p>
+      <button class="btn btn-ghost btn-full" onclick="refreshStandingsOnly()">🔄 Refresh Standings Only (no match entry)</button>
+      <div id="refresh-cache-msg" class="hidden" style="margin-top:8px"></div>
     </div>
 
     <div id="fetch-msg" class="hidden"></div>
     <div id="fetch-loading" class="hidden" style="text-align:center;padding:20px;color:var(--muted)"><span class="spinner"></span> Fetching...</div>
     <div id="fetch-results"></div>
+
 
     <!-- Manual fallback -->
     <div class="section-title">Manual Entry (fallback)</div>
@@ -349,7 +360,39 @@ function switchTab(tab) {
   if (tab === 'players') loadPlayers();
 }
 
-function loadAll() { loadMatches(); loadBonuses(); loadPlayers(); loadBracket(); }
+function loadAll() { loadMatches(); loadBonuses(); loadPlayers(); loadBracket(); loadCacheTimestamp(); }
+
+async function loadCacheTimestamp() {
+  try {
+    const res  = await fetch(`${API_URL}?action=get_tournament`);
+    const data = await res.json();
+    const el = document.getElementById('cache-timestamp');
+    if (data.lastCached) {
+      const d = new Date(data.lastCached);
+      el.textContent = d.toLocaleString('en-KE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+    } else {
+      el.textContent = 'Never — fetch matches or refresh standings to populate';
+    }
+  } catch(e) {
+    document.getElementById('cache-timestamp').textContent = 'Unknown';
+  }
+}
+
+async function refreshStandingsOnly() {
+  const apiKey = '090be0397ceb497eaf7526dcd7f857d3';
+  const msgEl  = document.getElementById('refresh-cache-msg');
+  showMsg(msgEl, 'Refreshing...', 'warning');
+  try {
+    const res  = await apiFetch({ action:'refresh_tournament_cache', apiKey });
+    const data = await res.json();
+    if (data.success) {
+      showMsg(msgEl, `✓ Standings refreshed — ${data.teamsUpdated} teams updated.`, 'success');
+      loadCacheTimestamp();
+    } else {
+      showMsg(msgEl, data.error || 'Refresh failed.', 'danger');
+    }
+  } catch(e) { showMsg(msgEl, 'Connection error.', 'danger'); }
+}
 
 // ---- FETCH & AUTO-SAVE ----
 async function fetchAndSave() {
