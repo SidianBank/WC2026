@@ -224,6 +224,28 @@
 
   <!-- BRACKET TAB -->
   <div id="tab-bracket" class="tab-content">
+    <div class="card" style="margin-bottom:14px">
+      <h3>📥 Auto-Fetch Bracket from API</h3>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">
+        Once FIFA officially publishes a knockout round's pairings, pull them in automatically — no need to figure out qualifiers yourself.
+      </p>
+      <div class="bracket-stage-tabs" id="autofetch-stage-tabs">
+        <div class="stage-pill active" onclick="selectAutoFetchStage('R32',this)">R32</div>
+        <div class="stage-pill" onclick="selectAutoFetchStage('R16',this)">R16</div>
+        <div class="stage-pill" onclick="selectAutoFetchStage('QF',this)">QF</div>
+        <div class="stage-pill" onclick="selectAutoFetchStage('SF',this)">SF</div>
+        <div class="stage-pill" onclick="selectAutoFetchStage('3rd',this)">3rd Place</div>
+        <div class="stage-pill" onclick="selectAutoFetchStage('Final',this)">Final</div>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="fetchBracketFromAPI()">📥 Fetch &amp; Auto-Fill This Round</button>
+      <div id="autofetch-msg" class="hidden" style="margin-top:8px"></div>
+      <details style="margin-top:10px">
+        <summary style="font-size:0.74rem;color:var(--muted);cursor:pointer">🔍 Not finding matches? Check the exact stage name the API uses</summary>
+        <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="discoverStages()">Discover Available Stages</button>
+        <div id="discover-result" style="margin-top:8px;font-size:0.72rem;color:var(--muted)"></div>
+      </details>
+    </div>
+
     <div class="card">
       <h3>Set Knockout Bracket Matches</h3>
       <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">Use this after the group stage ends to set up R32, R16, QF, SF and Final matches with the qualified teams.</p>
@@ -603,6 +625,53 @@ function selectBracketStage(stage, el) {
   document.querySelectorAll('.stage-pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   currentBracketStage = stage;
+}
+
+let autoFetchStage = 'R32';
+function selectAutoFetchStage(stage, el) {
+  document.querySelectorAll('#autofetch-stage-tabs .stage-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  autoFetchStage = stage;
+}
+
+async function fetchBracketFromAPI() {
+  const apiKey = '090be0397ceb497eaf7526dcd7f857d3';
+  const msgEl  = document.getElementById('autofetch-msg');
+  showMsg(msgEl, `Fetching ${autoFetchStage} from API...`, 'warning');
+  try {
+    const res  = await apiFetch({ action:'fetch_bracket_from_api', apiKey, stage:autoFetchStage });
+    const data = await res.json();
+    if (data.success) {
+      if (data.count > 0) {
+        showMsg(msgEl, `✓ ${data.count} match(es) auto-filled for ${autoFetchStage}.`, 'success');
+        loadBracket();
+      } else {
+        showMsg(msgEl, data.message || 'No matches found for this stage yet.', 'warning');
+      }
+    } else {
+      showMsg(msgEl, data.error || 'Fetch failed.', 'danger');
+    }
+  } catch(e) { showMsg(msgEl, 'Connection error.', 'danger'); }
+}
+
+async function discoverStages() {
+  const apiKey = '090be0397ceb497eaf7526dcd7f857d3';
+  const resultEl = document.getElementById('discover-result');
+  resultEl.textContent = 'Checking...';
+  try {
+    const res  = await apiFetch({ action:'discover_stages', apiKey });
+    const data = await res.json();
+    if (data.success) {
+      const entries = Object.entries(data.stages || {});
+      if (entries.length === 0) {
+        resultEl.textContent = 'No matches found in the API yet for this tournament.';
+      } else {
+        resultEl.innerHTML = entries.map(([stage,count]) => `<strong style="color:var(--text)">${stage}</strong>: ${count} match(es)`).join('<br>');
+      }
+    } else {
+      resultEl.textContent = data.error || 'Could not check stages.';
+    }
+  } catch(e) { resultEl.textContent = 'Connection error.'; }
 }
 
 async function addBracketMatch() {
