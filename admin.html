@@ -243,6 +243,8 @@
         <summary style="font-size:0.74rem;color:var(--muted);cursor:pointer">🔍 Not finding matches? Check the exact stage name the API uses</summary>
         <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="discoverStages()">Discover Available Stages</button>
         <div id="discover-result" style="margin-top:8px;font-size:0.72rem;color:var(--muted)"></div>
+        <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="checkBracketCompleteness()">Check Our Bracket Completeness</button>
+        <div id="completeness-result" style="margin-top:8px;font-size:0.72rem;color:var(--muted)"></div>
       </details>
     </div>
 
@@ -643,7 +645,11 @@ async function fetchBracketFromAPI() {
     const data = await res.json();
     if (data.success) {
       if (data.count > 0) {
-        showMsg(msgEl, `✓ ${data.count} match(es) auto-filled for ${autoFetchStage}.`, 'success');
+        let msg = `✓ ${data.count} match(es) auto-filled for ${autoFetchStage}.`;
+        if (data.bonusMessages && data.bonusMessages.length) {
+          msg += ' Results & bonuses auto-detected: ' + data.bonusMessages.join(' ');
+        }
+        showMsg(msgEl, msg, 'success');
         loadBracket();
       } else {
         showMsg(msgEl, data.message || 'No matches found for this stage yet.', 'warning');
@@ -670,6 +676,24 @@ async function discoverStages() {
       }
     } else {
       resultEl.textContent = data.error || 'Could not check stages.';
+    }
+  } catch(e) { resultEl.textContent = 'Connection error.'; }
+}
+
+async function checkBracketCompleteness() {
+  const resultEl = document.getElementById('completeness-result');
+  resultEl.textContent = 'Checking our Bracket sheet...';
+  try {
+    const res  = await apiFetch({ action:'check_bracket_completeness' });
+    const data = await res.json();
+    if (data.success) {
+      resultEl.innerHTML = data.report.map(r => {
+        const icon = r.complete ? '✅' : (r.have > 0 ? '⚠️' : '⬜');
+        const color = r.complete ? 'var(--success)' : (r.have > 0 ? 'var(--warning)' : 'var(--muted)');
+        return `<div style="color:${color}">${icon} <strong>${r.stage}</strong>: ${r.have} / ${r.expected} matches</div>`;
+      }).join('');
+    } else {
+      resultEl.textContent = data.error || 'Could not check completeness.';
     }
   } catch(e) { resultEl.textContent = 'Connection error.'; }
 }
@@ -712,7 +736,8 @@ function renderBracket() {
     if (!sm.length) return;
     html += `<div class="section-title">${stageLabel(stage)}</div>`;
     sm.forEach(b => {
-      const winTag = b.Winner ? `<span class="winner-tag">🏆 ${esc(b.Winner)}</span>` : '';
+      const winTag  = b.Winner ? `<span class="winner-tag">🏆 ${esc(b.Winner)}</span>` : '';
+      const dateStr = b.Date ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:2px">${esc(b.Date)} EAT</div>` : '';
       html += `
         <div class="bracket-match">
           <div class="bm-header">
@@ -721,8 +746,13 @@ function renderBracket() {
             <button class="btn btn-danger btn-sm" onclick="delBracket('${b.BracketID}')">✕</button>
           </div>
           <div class="bm-teams">${esc(b.Team1)} <span class="bm-vs">vs</span> ${esc(b.Team2)}</div>
+          ${dateStr}
           ${!b.Winner ? `
-          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+          <div id="pending-${b.BracketID}" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:0.76rem;color:var(--muted)">⏳ Awaiting result — auto-detected once the match finishes</span>
+            <button class="btn btn-ghost btn-sm" onclick="toggleResultEditor('${b.BracketID}')">✏️ Edit Result</button>
+          </div>
+          <div id="editor-${b.BracketID}" class="hidden" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-success btn-sm" onclick="saveBracketResult('${b.BracketID}','team1')">${esc(b.Team1)} Wins</button>
             <button class="btn btn-warning btn-sm" onclick="saveBracketResult('${b.BracketID}','draw')">Draw/ET</button>
             <button class="btn btn-success btn-sm" onclick="saveBracketResult('${b.BracketID}','team2')">${esc(b.Team2)} Wins</button>
@@ -733,11 +763,25 @@ function renderBracket() {
   list.innerHTML = html;
 }
 
+function toggleResultEditor(bracketId) {
+  const pending = document.getElementById('pending-' + bracketId);
+  const editor  = document.getElementById('editor-' + bracketId);
+  pending.classList.add('hidden');
+  editor.classList.remove('hidden');
+}
+
 async function saveBracketResult(bracketId, result) {
   try {
     const res  = await apiFetch({ action:'update_bracket', bracketId, result });
     const data = await res.json();
-    if (data.success) { showToast(`Winner: ${data.winner} ✓`,'success'); loadBracket(); }
+    if (data.success) {
+      let msg = `Winner: ${data.winner} ✓`;
+      if (data.bonusMessages && data.bonusMessages.length) {
+        msg += ' — ' + data.bonusMessages.join(' ');
+      }
+      showToast(msg, 'success');
+      loadBracket();
+    }
     else showToast(data.error||'Error.','danger');
   } catch(e) { showToast('Error.','danger'); }
 }
