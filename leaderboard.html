@@ -350,12 +350,23 @@
     .upcoming-row .ur-time { font-size:0.6rem; color:var(--primary-light); width:38px; flex-shrink:0; text-align:right; }
 
     /* ===== KNOCKOUT BRACKET TAB (full-width row layout) ===== */
-    .bracket-row { display:flex; gap:12px; align-items:center; }
+    .bracket-row { display:flex; gap:0; align-items:stretch; }
     .bracket-header-row { align-items:flex-end; margin-bottom:4px; }
-    .bracket-row-left { width:50%; flex-shrink:0; }
-    .bracket-row-right { width:50%; flex-shrink:0; display:flex; flex-direction:column; justify-content:center; }
+    .bracket-row-left { width:46%; flex-shrink:0; }
+    .bracket-row-right { width:46%; flex-shrink:0; display:flex; flex-direction:column; justify-content:center; }
+    .bracket-header-row .bracket-row-left, .bracket-header-row .bracket-row-right { display:block; }
+    .bracket-header-row .bracket-connector::before, .bracket-header-row .bracket-connector::after { display:none; }
+    /* L-shaped connector: vertical line links the pair, horizontal line
+       runs into the feeder box. Sits in the 8% gap between columns. */
+    .bracket-connector { width:8%; flex-shrink:0; position:relative; }
+    .bracket-connector::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:2px; background:var(--primary-dark); opacity:0.7; }
+    .bracket-connector::after { content:''; position:absolute; left:0; right:0; top:50%; height:2px; background:var(--primary-dark); opacity:0.7; transform:translateY(-1px); }
+    .bracket-connector.single::before { display:none; } /* single match -> just the horizontal line */
     .bracket-col-title { font-size:0.74rem; font-weight:800; color:var(--primary-light); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; text-align:center; padding-bottom:6px; border-bottom:2px solid var(--primary); }
-    .bracket-match-row { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+    .bracket-match-row { background:var(--card); border:1px solid var(--border); border-left:3px solid var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px; transition:border-color 0.2s; }
+    .bracket-match-row.bmr-decided { border-left-color:var(--success); }
+    .bracket-match-row.bmr-upcoming { border-left-color:var(--primary); background:linear-gradient(90deg, rgba(244,195,33,0.06), var(--card) 40%); }
+    .bracket-match-row.bmr-pending  { opacity:0.78; }
     .bracket-match-row .bmr-num { font-size:0.6rem; color:var(--muted); margin-bottom:4px; }
     .bracket-match-row .bmr-team { font-size:0.78rem; font-weight:700; padding:2px 0; }
     .bracket-match-row .bmr-team.winner { color:var(--success); }
@@ -1243,9 +1254,22 @@ const STAGE_DISPLAY_ORDER = {
   Final: [104]
 };
 
-// Resolve the FIFA M-number for any bracket row.
+// Cache of resolved M-numbers, keyed by a row's identity, cleared each
+// time fresh bracket data loads. Without this, the recursive feeder
+// resolution recomputes the same matches repeatedly on every render —
+// the cause of slow bracket loads.
+let _matchNumCache = new WeakMap();
+function clearMatchNumCache() { _matchNumCache = new WeakMap(); }
+
 function resolveMatchNumber(m) {
   if (m._synthNum) return m._synthNum;
+  if (_matchNumCache.has(m)) return _matchNumCache.get(m);
+  const result = _computeMatchNumber(m);
+  _matchNumCache.set(m, result);
+  return result;
+}
+
+function _computeMatchNumber(m) {
   if (m.Stage === 'R32') {
     var t1 = m.Team1, t2 = m.Team2;
     for (var i = 0; i < R32_MATCH_NUMBERS.length; i++) {
@@ -1254,11 +1278,29 @@ function resolveMatchNumber(m) {
         return R32_MATCH_NUMBERS[i].m;
       }
     }
-    return null; // unknown pairing — fall back gracefully
+    return null;
   }
-  var start = STAGE_MATCH_START[m.Stage];
-  if (start == null) return null;
-  return start + (Number(m.Position || 1) - 1);
+
+  // Later rounds: find the M-number for this stage whose expected feeder
+  // teams match this row's actual teams.
+  var startNum = STAGE_MATCH_START[m.Stage];
+  if (startNum == null) return null;
+  var stageNums = STAGE_DISPLAY_ORDER[m.Stage] || [];
+  var rt1 = m.Team1, rt2 = m.Team2;
+
+  for (var k = 0; k < stageNums.length; k++) {
+    var num = stageNums[k];
+    var feeders = MATCH_FEEDERS[num];
+    if (!feeders) continue;
+    var exp1 = resolveFeederCode(feeders[0]);
+    var exp2 = resolveFeederCode(feeders[1]);
+    if (rt1 && rt1 !== 'TBD' && rt2 && rt2 !== 'TBD') {
+      if ((rt1 === exp1 && rt2 === exp2) || (rt1 === exp2 && rt2 === exp1)) return num;
+    } else if (rt1 && rt1 !== 'TBD') {
+      if (rt1 === exp1 || rt1 === exp2) return num;
+    }
+  }
+  return null;
 }
 
 const BRACKET_STAGE_LABELS = { R32:'Round of 32', R16:'Round of 16', QF:'Quarter-Final', SF:'Semi-Final', '3rd':'3rd Place', Final:'Final' };
@@ -1272,6 +1314,7 @@ async function loadKnockoutBracket() {
     const res  = await fetch(API_URL + '?action=get_bracket');
     const data = await res.json();
     bracketDataFull = data.bracket || [];
+    clearMatchNumCache();
     renderKnockoutBracket();
   } catch(e) {
     document.getElementById('bracket-loading').innerHTML = '<div style="color:var(--danger)">⚠️ Could not load bracket.</div>';
@@ -1352,6 +1395,7 @@ function renderBracketColumns() {
   const headerRow = (leftTitle, rightTitle) => `
     <div class="bracket-row bracket-header-row">
       <div class="bracket-row-left"><div class="bracket-col-title">${leftTitle||''}</div></div>
+      <div class="bracket-connector"></div>
       <div class="bracket-row-right"><div class="bracket-col-title">${rightTitle||''}</div></div>
     </div>`;
 
@@ -1366,6 +1410,7 @@ function renderBracketColumns() {
     html += `
       <div class="bracket-row">
         <div class="bracket-row-left">${leftMatches.map(renderBracketMatchRow).join('')}</div>
+        <div class="bracket-connector single"></div>
         <div class="bracket-row-right">${winnerBox(matchNum)}</div>
       </div>`;
     colsDiv.innerHTML = html;
@@ -1396,6 +1441,7 @@ function renderBracketColumns() {
     html += `
       <div class="bracket-row">
         <div class="bracket-row-left">${leftHtml}</div>
+        <div class="bracket-connector"></div>
         <div class="bracket-row-right">${rightHtml}</div>
       </div>`;
     // Full-width luminous hairline after each pair (except the last)
@@ -1476,8 +1522,16 @@ function renderBracketMatchRow(m) {
   const team2 = slot(m.Team2, 1);
   const numLabel = matchNum ? `M${matchNum}` : `Match ${esc(m.Position||'')}`;
   const dateStr  = formatBracketDate(m.Date);
+
+  // Result state for color-coding:
+  //   decided  -> a real winner exists (green accent)
+  //   upcoming -> both real teams known but not yet played (gold accent)
+  //   pending  -> still a placeholder / TBD (neutral)
+  const hasRealTeams = (m.Team1 && m.Team1 !== 'TBD') && (m.Team2 && m.Team2 !== 'TBD');
+  const stateClass = hasWinner ? 'bmr-decided' : (hasRealTeams ? 'bmr-upcoming' : 'bmr-pending');
+
   return `
-    <div class="bracket-match-row">
+    <div class="bracket-match-row ${stateClass}">
       <div class="bmr-num">${numLabel}</div>
       <div class="bmr-team ${t1Class}">${team1}${hasWinner && m.Winner===m.Team1 ? ' 🏆' : ''}</div>
       <div class="bmr-team ${t2Class}">${team2}${hasWinner && m.Winner===m.Team2 ? ' 🏆' : ''}</div>
@@ -1527,7 +1581,30 @@ function toggleShowMore(id, btn) {
 
 // Init
 loadLeaderboard();
-setInterval(loadLeaderboard, 3 * 60 * 1000);
+
+// Auto-refresh keeps scores live, but it must never freeze the page or
+// disrupt what someone's doing. So we skip a refresh when:
+//   - the browser tab is hidden (no point re-rendering offscreen),
+//   - a search is active (don't wipe the filtered view),
+//   - a match modal is open,
+//   - a previous refresh is still running (no overlap).
+let _refreshing = false;
+function safeAutoRefresh() {
+  if (document.hidden) return;
+  if (_refreshing) return;
+  const fabInput = document.getElementById('fab-search-input');
+  const searchActive = (fabInput && fabInput.value.trim()) ||
+                       (document.getElementById('standings-search') && document.getElementById('standings-search').value.trim()) ||
+                       (document.getElementById('stats-search') && document.getElementById('stats-search').value.trim());
+  if (searchActive) return;
+  const modal = document.getElementById('match-modal');
+  if (modal && !modal.classList.contains('hidden')) return;
+
+  _refreshing = true;
+  Promise.resolve(loadLeaderboard()).finally(() => { _refreshing = false; });
+}
+setInterval(safeAutoRefresh, 3 * 60 * 1000);
+
 // The FAB element is defined just below this script, so wait until the
 // DOM is fully parsed before toggling its visibility on first load.
 if (document.readyState === 'loading') {
