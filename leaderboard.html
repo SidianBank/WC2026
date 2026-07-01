@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#000000">
   <title>WC2026 Workplace Game — Leaderboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23111111'/><rect x='3' y='3' width='94' height='94' rx='20' fill='none' stroke='%23f4c321' stroke-width='3'/><text x='50' y='52' font-family='Georgia,serif' font-size='52' font-weight='bold' fill='%23f4c321' text-anchor='middle' dominant-baseline='central'>SB</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Quintessential&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -605,8 +606,29 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbyO0bUHn03KKOAcAni4OJLDIIncAODvl6Qj5xlIK9ryQcij4jPpjhMwhA8Vhieu-m5z/exec';
+
+// Published-CSV endpoints (Google CDN — served to all viewers without
+// touching Apps Script, so no concurrency limits / cold starts / timeouts).
+const CSV_LEADERBOARD = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQI9IslYQcbicmtgp94_HPBXbKUCiaI30DD86MUtgfwV99F82RMlPk_1gB51TBRGmFVaMnoKNE50opT/pub?gid=432081838&single=true&output=csv';
+const CSV_STATS       = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQI9IslYQcbicmtgp94_HPBXbKUCiaI30DD86MUtgfwV99F82RMlPk_1gB51TBRGmFVaMnoKNE50opT/pub?gid=977114273&single=true&output=csv';
+const CSV_STANDINGS   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQI9IslYQcbicmtgp94_HPBXbKUCiaI30DD86MUtgfwV99F82RMlPk_1gB51TBRGmFVaMnoKNE50opT/pub?gid=378517717&single=true&output=csv';
+const CSV_FIXTURES    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQI9IslYQcbicmtgp94_HPBXbKUCiaI30DD86MUtgfwV99F82RMlPk_1gB51TBRGmFVaMnoKNE50opT/pub?gid=2134574564&single=true&output=csv';
+const CSV_BRACKET     = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQI9IslYQcbicmtgp94_HPBXbKUCiaI30DD86MUtgfwV99F82RMlPk_1gB51TBRGmFVaMnoKNE50opT/pub?gid=1974853299&single=true&output=csv';
+
+// Fetch + parse a published CSV into an array of row objects (header-keyed).
+// Cache-busting param avoids the browser serving a stale copy on refresh.
+function fetchCsv(url) {
+  return new Promise(function(resolve, reject) {
+    Papa.parse(url + '&_cb=' + Date.now(), {
+      download: true, header: true, skipEmptyLines: true,
+      complete: function(res) { resolve(res.data || []); },
+      error: function(err) { reject(err); }
+    });
+  });
+}
 
 const CAT_MAP = {
   // CAT 1 — Rank 1-13
@@ -730,15 +752,38 @@ async function loadLeaderboard() {
   document.getElementById('podium').classList.add('hidden');
   document.getElementById('empty').classList.add('hidden');
   try {
-    const res  = await fetch(API_URL + '?action=leaderboard');
-    const data = await res.json();
-    fullLeaderboard = data.leaderboard || [];
-    eliminatedTeams = new Set(data.eliminatedTeams || []);
+    // Read the published Live_Leaderboard CSV (Google CDN) and the
+    // Live_Standings CSV (for the eliminated-team greying). Both are served
+    // without touching Apps Script.
+    const [lbRows, stRows] = await Promise.all([ fetchCsv(CSV_LEADERBOARD), fetchCsv(CSV_STANDINGS) ]);
+
+    fullLeaderboard = lbRows.map(rowToLeaderboardEntry).filter(Boolean);
+
+    // Eliminated teams come from the standings CSV's "Eliminated" column
+    eliminatedTeams = new Set(stRows.filter(r => (r.Eliminated||'').trim() === 'OUT').map(r => r.Team));
+
     picksData = fullLeaderboard;
-    renderLeaderboard(data);
+    renderLeaderboard({ leaderboard: fullLeaderboard, lastUpdated: new Date().toISOString() });
   } catch(e) {
     document.getElementById('loading').innerHTML = '<div style="color:var(--danger)">⚠️ Could not load data.</div>';
   }
+}
+
+// Maps one published-CSV row into the object shape renderLeaderboard expects.
+function rowToLeaderboardEntry(r) {
+  if (!r || !r.Name) return null;
+  const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  return {
+    name: r.Name,
+    sex: r.Sex || '',
+    total: num(r.Total),
+    matchPoints: num(r.MatchPoints),
+    bonusPoints: num(r.BonusPoints),
+    gdSum: num(r.GDsum),
+    winsCount: num(r.Wins),
+    upsetWinsCount: num(r.Upsets),
+    picks: { A:r.A, B:r.B, C:r.C, D:r.D, E:r.E, F:r.F, G:r.G, H:r.H, I:r.I, J:r.J, K:r.K, L:r.L }
+  };
 }
 
 function setStandingsView(view, btn) {
@@ -882,19 +927,46 @@ async function loadBracket() {
   document.getElementById('tournament-loading').classList.remove('hidden');
   document.getElementById('tournament-content').classList.add('hidden');
   try {
-    const res  = await fetch(API_URL + '?action=get_tournament');
-    const data = await res.json();
-    if (data.error) {
-      document.getElementById('tournament-loading').innerHTML =
-        '<div style="color:var(--danger);padding:20px;font-size:0.8rem">⚠️ API Error:<br><code style="color:var(--warning);font-size:0.7rem">' + data.error + '</code><br><br><button onclick="tournamentLoaded=false;loadBracket()" style="margin-top:10px;padding:8px 16px;background:var(--primary);border:none;color:#fff;border-radius:7px;cursor:pointer">Retry</button></div>';
-      return;
-    }
-    renderTournament(data);
+    const [stRows, fxRows] = await Promise.all([ fetchCsv(CSV_STANDINGS), fetchCsv(CSV_FIXTURES) ]);
+
+    const standings = stRows.map(rowToStandingEntry).filter(Boolean);
+    const recentMatches   = fxRows.filter(r => (r.Status||'') === 'recent').map(rowToFixture);
+    const upcomingMatches = fxRows.filter(r => (r.Status||'') === 'upcoming').map(rowToFixture);
+
+    // keep eliminated set in sync for the standings greying
+    eliminatedTeams = new Set(stRows.filter(r => (r.Eliminated||'').trim() === 'OUT').map(r => r.Team));
+
+    renderTournament({ standings, recentMatches, upcomingMatches, lastCached: new Date().toISOString() });
     tournamentLoaded = true;
   } catch(e) {
     document.getElementById('tournament-loading').innerHTML =
       '<div style="color:var(--danger);padding:20px;font-size:0.8rem">⚠️ ' + e.message + '<br><br><button onclick="tournamentLoaded=false;loadBracket()" style="margin-top:10px;padding:8px 16px;background:var(--primary);border:none;color:#fff;border-radius:7px;cursor:pointer">Retry</button></div>';
   }
+}
+
+// Map a Live_Standings CSV row -> the shape renderTournament expects.
+function rowToStandingEntry(r) {
+  if (!r || !r.Team) return null;
+  const num = v => { const n = parseInt(v,10); return isNaN(n) ? 0 : n; };
+  return { team:r.Team, played:num(r.P), won:num(r.W), draw:num(r.D), lost:num(r.L),
+           goalDiff:num(r.GD), goalsFor:num(r.GF), goalsAgainst:num(r.GA), points:num(r.Pts) };
+}
+
+// Map a Live_Fixtures CSV row -> the shape renderTournament expects.
+function rowToFixture(r) {
+  const numOrNull = v => (v === '' || v == null) ? null : (isNaN(parseInt(v,10)) ? null : parseInt(v,10));
+  return { homeTeam:r.HomeTeam, awayTeam:r.AwayTeam,
+           homeScore:numOrNull(r.HomeScore), awayScore:numOrNull(r.AwayScore),
+           result:r.Result||'', stage:r.Stage||'', group:r.Group||'',
+           date:r.Date||'', time:r.Time||'', utcDate:r.UtcDate||'' };
+}
+
+// Formats a fixture's YYYY-MM-DD date as DD/MM (empty if missing/invalid).
+function ddmm(dateStr) {
+  if (!dateStr) return '';
+  const parts = String(dateStr).split('-'); // [YYYY, MM, DD]
+  if (parts.length !== 3) return '';
+  return parts[2] + '/' + parts[1];
 }
 
 function renderTournament(data) {
@@ -928,7 +1000,7 @@ function renderTournament(data) {
           <div class="rr-team" style="${homeWin?'color:var(--success)':awayWin?'opacity:0.45':''}">${esc(m.homeTeam)}</div>
           <div class="rr-score" style="color:${scoreColor}">${scoreStr}</div>
           <div class="rr-team right" style="${awayWin?'color:var(--success)':homeWin?'opacity:0.45':''}">${esc(m.awayTeam)}</div>
-          <div class="rr-date">${m.time||''}</div>
+          <div class="rr-date">${ddmm(m.date)}${m.time ? ' · ' + m.time : ''}</div>
         </div>`;
     });
     renderExpandableRows(recentDiv, rows);
@@ -948,7 +1020,7 @@ function renderTournament(data) {
           <div class="ur-team">${esc(m.homeTeam)}</div>
           <div class="ur-vs">vs</div>
           <div class="ur-team right">${esc(m.awayTeam)}</div>
-          <div class="ur-time">${m.time||''}</div>
+          <div class="ur-time">${ddmm(m.date)}${m.time ? ' · ' + m.time : ''}</div>
         </div>`;
     });
     renderExpandableRows(upcomingDiv, rows);
@@ -992,13 +1064,53 @@ async function loadStats() {
   document.getElementById('stats-loading').classList.remove('hidden');
   document.getElementById('stats-content').classList.add('hidden');
   try {
-    const res  = await fetch(API_URL + '?action=get_stats');
-    const data = await res.json();
-    fullStatsData = data;
-    renderStats(data);
+    const [statRows, lbRows, stRows] = await Promise.all([
+      fetchCsv(CSV_STATS), fetchCsv(CSV_LEADERBOARD), fetchCsv(CSV_STANDINGS)
+    ]);
+
+    const playerStats = statRows.map(rowToStatsEntry).filter(Boolean);
+    const mostPicked = computeMostPicked(lbRows);
+
+    // Total matches played = sum of every team's "played" ÷ 2 (each match
+    // is counted once per team). Derived from the standings CSV.
+    let totalPlayedSum = 0;
+    stRows.forEach(r => { const p = parseInt(r.P,10); if (!isNaN(p)) totalPlayedSum += p; });
+    const totalMatches = Math.round(totalPlayedSum / 2);
+
+    fullStatsData = { playerStats: playerStats, mostPicked: mostPicked,
+                      totalPlayers: playerStats.length, totalMatches: totalMatches };
+    renderStats(fullStatsData);
   } catch(e) {
     document.getElementById('stats-loading').innerHTML = '<div style="color:var(--danger)">⚠️ Could not load stats.</div>';
   }
+}
+
+// Maps one Live_Stats CSV row into the shape renderStats expects, unpacking
+// the JSON "Breakdown" column back into the per-match arrays.
+function rowToStatsEntry(r) {
+  if (!r || !r.Name) return null;
+  const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  let bd = { won:[], drawn:[], lost:[], upset:[], bonus:[] };
+  try { if (r.Breakdown) bd = JSON.parse(r.Breakdown); } catch(e) {}
+  return {
+    name: r.Name, sex: r.Sex || '',
+    total: num(r.Total), matchPoints: num(r.MatchPoints), bonusPoints: num(r.BonusPoints),
+    gdSum: num(r.GDsum),
+    wonMatches: bd.won || [], drawnMatches: bd.drawn || [],
+    lostMatches: bd.lost || [], upsetMatches: bd.upset || [],
+    bonusMatches: bd.bonus || []
+  };
+}
+
+// Tally most-picked teams from the leaderboard CSV's A..L pick columns.
+function computeMostPicked(lbRows) {
+  const counts = {};
+  const cols = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+  lbRows.forEach(r => cols.forEach(c => { const t = r[c]; if (t) counts[t] = (counts[t]||0)+1; }));
+  return Object.keys(counts)
+    .sort((a,b) => counts[b]-counts[a])
+    .slice(0,5)
+    .map(team => ({ team:team, count:counts[team] }));
 }
 
 function setStatsView(view, btn) {
@@ -1162,7 +1274,7 @@ function openMatchModal(playerIdx, type) {
       <div class="modal-match-item">
         <div class="mmi-teams">${esc(m.pickedTeam)}</div>
         <div class="mmi-meta">
-          <span>${esc(m.stage||'')} stage bonus</span>
+          <span>Reached ${esc(m.stage||'')}</span>
           <span class="mmi-pts won">+${m.pts} pts</span>
         </div>
       </div>`).join('');
@@ -1306,15 +1418,27 @@ function _computeMatchNumber(m) {
 const BRACKET_STAGE_LABELS = { R32:'Round of 32', R16:'Round of 16', QF:'Quarter-Final', SF:'Semi-Final', '3rd':'3rd Place', Final:'Final' };
 const BRACKET_STAGE_SHORT  = { R32:'R32', R16:'R16', QF:'QF', SF:'SF', '3rd':'3rd', Final:'Final' };
 
+let bracketLoaded = false;
+
 async function loadKnockoutBracket() {
+  // Already have the data — just re-render (instant, no re-fetch, no flash).
+  if (bracketLoaded && bracketDataFull.length) {
+    renderKnockoutBracket();
+    return;
+  }
   document.getElementById('bracket-loading').classList.remove('hidden');
   document.getElementById('bracket-empty').classList.add('hidden');
   document.getElementById('bracket-scroll-wrap').classList.add('hidden');
   try {
-    const res  = await fetch(API_URL + '?action=get_bracket');
-    const data = await res.json();
-    bracketDataFull = data.bracket || [];
+    const rows = await fetchCsv(CSV_BRACKET);
+    // The Live_Bracket CSV columns mirror the old Bracket sheet exactly, so
+    // the existing bracket logic consumes them unchanged.
+    bracketDataFull = rows.map(r => ({
+      BracketID: r.BracketID, Stage: r.Stage, Position: r.Position,
+      Team1: r.Team1, Team2: r.Team2, Result: r.Result, Winner: r.Winner, Date: r.Date
+    })).filter(r => r.Stage);
     clearMatchNumCache();
+    bracketLoaded = true;
     renderKnockoutBracket();
   } catch(e) {
     document.getElementById('bracket-loading').innerHTML = '<div style="color:var(--danger)">⚠️ Could not load bracket.</div>';
@@ -1358,6 +1482,30 @@ function getStageMatches(stage) {
   return matches;
 }
 
+// Determines the "active phase": the round currently being played. A match
+// is decided if it has a Winner. We find the furthest stage that has any
+// decided match; if that stage is fully decided, the action has moved to the
+// next stage, so we show that. Falls back to R32.
+function pickActiveStage() {
+  const decidedCount = stage => bracketDataFull.filter(b => b.Stage === stage && b.Winner && b.Winner !== '').length;
+  const totalCount   = stage => bracketDataFull.filter(b => b.Stage === stage).length;
+  const expected = { R32:16, R16:8, QF:4, SF:2, '3rd':1, Final:1 };
+
+  // Walk from latest to earliest; the first stage with ANY decided match is
+  // the frontier. If it's fully decided, jump to the next stage.
+  for (let i = BRACKET_STAGE_ORDER.length - 1; i >= 0; i--) {
+    const stage = BRACKET_STAGE_ORDER[i];
+    if (decidedCount(stage) > 0) {
+      const exp = expected[stage] || totalCount(stage);
+      if (decidedCount(stage) >= exp && i < BRACKET_STAGE_ORDER.length - 1) {
+        return BRACKET_STAGE_ORDER[i + 1]; // this round done -> next round is active
+      }
+      return stage; // this round is in progress
+    }
+  }
+  return 'R32';
+}
+
 function renderKnockoutBracket() {
   document.getElementById('bracket-loading').classList.add('hidden');
 
@@ -1368,11 +1516,13 @@ function renderKnockoutBracket() {
   }
   document.getElementById('bracket-scroll-wrap').classList.remove('hidden');
 
-  // Default to the furthest-along stage that has REAL data (so people
-  // land on what's currently happening); fall back to R32.
+  // Default to the "active phase of play": the furthest stage that has at
+  // least one DECIDED match (a real Winner). The engine writes placeholder
+  // rows for all future stages, so checking for mere existence would wrongly
+  // jump to the Final. The NEXT stage after the last fully-decided one is
+  // where the action is, so we land there.
   if (!currentBracketStage) {
-    const furthest = [...BRACKET_STAGE_ORDER].reverse().find(s => bracketDataFull.some(b => b.Stage === s));
-    currentBracketStage = furthest || 'R32';
+    currentBracketStage = pickActiveStage();
   }
 
   // Pills — all stages are clickable, since later rounds render from the
