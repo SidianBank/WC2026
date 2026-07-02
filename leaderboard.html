@@ -357,23 +357,60 @@
     .bracket-row-right { width:46%; flex-shrink:0; display:flex; flex-direction:column; justify-content:center; }
     .bracket-header-row .bracket-row-left, .bracket-header-row .bracket-row-right { display:block; }
     .bracket-header-row .bracket-connector::before, .bracket-header-row .bracket-connector::after { display:none; }
-    /* L-shaped connector: vertical line links the pair, horizontal line
-       runs into the feeder box. Sits in the 8% gap between columns. */
-    .bracket-connector { width:8%; flex-shrink:0; position:relative; }
-    .bracket-connector::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:2px; background:var(--primary-dark); opacity:0.7; }
-    .bracket-connector::after { content:''; position:absolute; left:0; right:0; top:50%; height:2px; background:var(--primary-dark); opacity:0.7; transform:translateY(-1px); }
-    .bracket-connector.single::before { display:none; } /* single match -> just the horizontal line */
+    /* Curly-brace "}" connector: two mirrored halves — the top half curves
+       out and DOWN to the centre, the bottom half curves out and UP to meet
+       it — forming a } whose tip feeds the next-round card. The tip's stub
+       is painted as a background line (both pseudo-elements are used by the
+       brace halves). Pure CSS on the same DOM. */
+    .bracket-connector {
+      width:8%; flex-shrink:0; position:relative;
+      background-image:linear-gradient(var(--primary-dark), var(--primary-dark));
+      background-repeat:no-repeat;
+      background-size:54% 2px;        /* stub: from the tip (46%) to the card */
+      background-position:100% 50%;
+    }
+    .bracket-connector::before {
+      content:''; position:absolute; left:0; top:24%; height:26%; width:46%;
+      border-top:2px solid var(--primary-dark);
+      border-right:2px solid var(--primary-dark);
+      border-radius:0 14px 0 0;   /* top half of the } */
+      opacity:0.85;
+    }
+    .bracket-connector::after {
+      content:''; position:absolute; left:0; bottom:24%; height:26%; width:46%;
+      border-bottom:2px solid var(--primary-dark);
+      border-right:2px solid var(--primary-dark);
+      border-radius:0 0 14px 0;   /* bottom half of the } */
+      opacity:0.85;
+    }
+    .bracket-connector.single::before, .bracket-connector.single::after { display:none; }
+    .bracket-connector.single { background-size:100% 2px; } /* single feeder -> plain line */
+    .bracket-header-row .bracket-connector { background:none; } /* no stub in the header row */
     .bracket-col-title { font-size:0.74rem; font-weight:800; color:var(--primary-light); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; text-align:center; padding-bottom:6px; border-bottom:2px solid var(--primary); }
-    .bracket-match-row { background:var(--card); border:1px solid var(--border); border-left:3px solid var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px; transition:border-color 0.2s; }
+    .bracket-match-row {
+      background:linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 55%), var(--card);
+      border:1px solid rgba(255,255,255,0.07);
+      border-left:3px solid var(--border);
+      border-radius:11px; padding:9px 12px; margin-bottom:10px;
+      transition:border-color 0.2s, transform 0.15s;
+    }
     .bracket-match-row.bmr-decided { border-left-color:var(--success); }
-    .bracket-match-row.bmr-upcoming { border-left-color:var(--primary); background:linear-gradient(90deg, rgba(244,195,33,0.06), var(--card) 40%); }
-    .bracket-match-row.bmr-pending  { opacity:0.78; }
-    .bracket-match-row .bmr-num { font-size:0.6rem; color:var(--muted); margin-bottom:4px; }
+    .bracket-match-row.bmr-upcoming { border-left-color:var(--primary); background:linear-gradient(90deg, rgba(244,195,33,0.07), var(--card) 45%); }
+    .bracket-match-row.bmr-pending  { opacity:0.72; border-style:dashed; }
+    .bracket-match-row .bmr-num {
+      display:inline-block; font-size:0.55rem; letter-spacing:0.5px; color:var(--muted);
+      border:1px solid rgba(255,255,255,0.12); border-radius:999px;
+      padding:1px 7px; margin-bottom:5px;
+    }
     .bracket-match-row .bmr-team { font-size:0.78rem; font-weight:700; padding:2px 0; }
     .bracket-match-row .bmr-team.winner { color:var(--success); }
     .bracket-match-row .bmr-team.loser { opacity:0.45; text-decoration:line-through; color:var(--muted); }
     .bracket-match-row .bmr-date { font-size:0.6rem; color:var(--muted); margin-top:4px; text-align:right; }
-    .bracket-pair-divider { height:1px; background:rgba(255,255,255,0.9); box-shadow:0 0 7px rgba(255,255,255,0.7); width:100%; margin:14px 0 18px; }
+    .bracket-pair-divider {
+      height:1px; width:72%; margin:16px auto 20px;
+      background:linear-gradient(90deg, transparent, rgba(244,195,33,0.35), transparent);
+      box-shadow:none;
+    }
     .show-more-btn { text-align:center; font-size:0.7rem; font-weight:700; color:var(--primary-light); padding:8px; cursor:pointer; user-select:none; border-radius:8px; background:var(--surface); border:1px solid var(--border); margin-top:2px; }
     .show-more-btn:hover { background:var(--card); }
 
@@ -1376,7 +1413,11 @@ function clearMatchNumCache() { _matchNumCache = new WeakMap(); }
 function resolveMatchNumber(m) {
   if (m._synthNum) return m._synthNum;
   if (_matchNumCache.has(m)) return _matchNumCache.get(m);
-  const result = _computeMatchNumber(m);
+  if (m._resolving) return null; // re-entrancy guard: break resolver cycles
+  m._resolving = true;
+  let result;
+  try { result = _computeMatchNumber(m); }
+  finally { m._resolving = false; }
   _matchNumCache.set(m, result);
   return result;
 }
@@ -1436,7 +1477,13 @@ async function loadKnockoutBracket() {
     bracketDataFull = rows.map(r => ({
       BracketID: r.BracketID, Stage: r.Stage, Position: r.Position,
       Team1: r.Team1, Team2: r.Team2, Result: r.Result, Winner: r.Winner, Date: r.Date
-    })).filter(r => r.Stage);
+    })).filter(r => r.Stage)
+      // Drop rows where BOTH teams are TBD: the synthetic-row machinery
+      // renders future rounds from the fixed feeder structure (with cached
+      // match numbers), whereas real TBD-v-TBD rows send the match-number
+      // resolver into a recursion cycle between undecided rows — which is
+      // what froze the R16+ pills.
+      .filter(r => (r.Team1 && r.Team1 !== 'TBD') || (r.Team2 && r.Team2 !== 'TBD'));
     clearMatchNumCache();
     bracketLoaded = true;
     renderKnockoutBracket();
